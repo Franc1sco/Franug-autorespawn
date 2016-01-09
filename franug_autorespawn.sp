@@ -2,7 +2,7 @@
 #include <sdktools>
 #include <cstrike>
 
-#define DATA "1.2.1"
+#define DATA "1.3"
 
 #define RESPAWNT 0.5 // time for respawn
 
@@ -46,13 +46,18 @@ public Action:spawn(Handle:event, const String:name[], bool:dontBroadcast)
 public Action:Event_Playerd2(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
+	if(IsValidClient(attacker) && attacker != client) return;
 	
-	if(enable) CreateTimer(RESPAWNT, Resp, client);
+	if(enable) CreateTimer(RESPAWNT, Resp, GetClientUserId(client));
 }
 
-public Action:Resp(Handle timer, int client)
+public Action:Resp(Handle timer, int userid)
 {
-	if(IsClientInGame(client) && !IsPlayerAlive(client) && GetClientTeam(client) > 1 && enable) CS_RespawnPlayer(client)
+	int client = GetClientOfUserId(userid);
+	if(client == 0) return;
+	
+	if(!IsPlayerAlive(client) && GetClientTeam(client) > 1 && enable) CS_RespawnPlayer(client)
 }
 
 public Action:OnJoinTeam(client, const String:command[], numArgs)
@@ -113,4 +118,12 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 		
 		g_fDeathTime[victim] = fGameTime;
 	}
+}
+
+public IsValidClient( client ) 
+{ 
+    if ( !( 1 <= client <= MaxClients ) || !IsClientInGame(client) ) 
+        return false; 
+     
+    return true; 
 }
