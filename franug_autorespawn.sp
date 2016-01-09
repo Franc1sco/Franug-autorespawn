@@ -2,7 +2,7 @@
 #include <sdktools>
 #include <cstrike>
 
-#define DATA "1.3"
+#define DATA "1.3.1"
 
 #define RESPAWNT 0.5 // time for respawn
 
@@ -36,6 +36,11 @@ public OnPluginStart()
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
 }
 
+public OnMapStart()
+{
+	enable = true;
+}
+
 public Action:spawn(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
@@ -57,7 +62,7 @@ public Action:Resp(Handle timer, int userid)
 	int client = GetClientOfUserId(userid);
 	if(client == 0) return;
 	
-	if(!IsPlayerAlive(client) && GetClientTeam(client) > 1 && enable) CS_RespawnPlayer(client)
+	if(IsClientInGame(client) && !IsPlayerAlive(client) && GetClientTeam(client) > 1 && enable) CS_RespawnPlayer(client)
 }
 
 public Action:OnJoinTeam(client, const String:command[], numArgs)
