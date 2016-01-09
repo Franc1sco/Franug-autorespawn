@@ -2,7 +2,7 @@
 #include <sdktools>
 #include <cstrike>
 
-#define DATA "1.2"
+#define DATA "1.2.1"
 
 #define RESPAWNT 0.5 // time for respawn
 
@@ -32,7 +32,7 @@ public OnPluginStart()
 	
 	AddCommandListener(OnJoinTeam, "jointeam");
 	
-	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
+	HookEvent("round_prestart", Event_RoundStart);
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
 }
 
