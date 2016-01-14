@@ -2,7 +2,7 @@
 #include <sdktools>
 #include <cstrike>
 
-#define DATA "1.3.1"
+#define DATA "1.4"
 
 #define RESPAWNT 0.5 // time for respawn
 
@@ -20,11 +20,10 @@ bool enable = true;
 
 new Float:g_fDeathTime[MAXPLAYERS+1];
 
-Handle timers, cvar_time;
+Handle timers, cvar_time, cvar_restart;
 
 public OnPluginStart()
 {
-	//HookEvent("round_start", Restart);
 	CreateConVar("sm_franugautorespawn_version", DATA, "", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
 	cvar_time = CreateConVar("sm_franugautorespawn_time", "30.0", "Time after round start for enable the spawnkiller. 0.0 = disabled.");
 	HookEvent("player_death", Event_Playerd2);
@@ -32,8 +31,34 @@ public OnPluginStart()
 	
 	AddCommandListener(OnJoinTeam, "jointeam");
 	
-	HookEvent("round_prestart", Event_RoundStart);
+	if(GetEngineVersion() == Engine_CSGO)
+	{
+		HookEvent("round_prestart", Event_RoundStart);
+	}
+	else 
+	{
+		HookEvent("round_start", Event_RoundStart);
+		HookEvent("round_end", Event_RoundStart);
+	}
+	
+	cvar_restart = FindConVar("mp_restartgame");
+	if(cvar_restart != INVALID_HANDLE)	
+		HookConVarChange(cvar_restart, Changed);
+	
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
+}
+
+public Changed(Handle:convar, const String:oldValue[], const String:newValue[])
+{
+	enable = true;
+	
+	if(timers != INVALID_HANDLE) KillTimer(timers);
+	timers = INVALID_HANDLE;
+	
+	float time = GetConVarFloat(cvar_time);
+	
+	if(time > 0.0)
+		timers = CreateTimer(time, spawnkill);
 }
 
 public OnMapStart()
