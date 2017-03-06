@@ -2,9 +2,11 @@
 #include <sdktools>
 #include <cstrike>
 
-#define DATA "1.4"
+#define DATA "1.5"
 
 #define RESPAWNT 0.5 // time for respawn
+
+bool course;
 
 public Plugin:myinfo = 
 {
@@ -20,12 +22,23 @@ bool enable = true;
 
 new Float:g_fDeathTime[MAXPLAYERS+1];
 
-Handle timers, cvar_time, cvar_restart;
+Handle timers, cvar_time, cvar_restart, cvar_course;
+
+float g_time;
+bool g_course;
 
 public OnPluginStart()
 {
 	CreateConVar("sm_franugautorespawn_version", DATA, "", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
+	cvar_course = CreateConVar("sm_franugautorespawn_course", "1", "1 = Autodisable this plugin in course maps. 0 = no autodisable in course maps");
 	cvar_time = CreateConVar("sm_franugautorespawn_time", "30.0", "Time after round start for enable the spawnkiller. 0.0 = disabled.");
+	
+	g_course = GetConVarBool(cvar_course);
+	g_time = GetConVarFloat(cvar_time);
+	
+	HookConVarChange(cvar_time, Changed_cvars);
+	HookConVarChange(cvar_course, Changed_cvars);
+	
 	HookEvent("player_death", Event_Playerd2);
 	HookEvent("player_spawn", spawn)
 	
@@ -48,6 +61,29 @@ public OnPluginStart()
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
 }
 
+public Changed_cvars(Handle:convar, const String:oldValue[], const String:newValue[])
+{
+	
+	
+	if(convar == cvar_time)
+	{
+		enable = true;
+		if(timers != INVALID_HANDLE) KillTimer(timers);
+		timers = INVALID_HANDLE;
+	
+		g_time = GetConVarFloat(cvar_time);
+		
+		float time = g_time;
+	
+		if(time > 0.0)
+			timers = CreateTimer(time, spawnkill);
+	}
+	else if(convar == cvar_course)
+	{
+		g_course = GetConVarBool(cvar_course);
+	}
+}
+
 public Changed(Handle:convar, const String:oldValue[], const String:newValue[])
 {
 	enable = true;
@@ -55,7 +91,7 @@ public Changed(Handle:convar, const String:oldValue[], const String:newValue[])
 	if(timers != INVALID_HANDLE) KillTimer(timers);
 	timers = INVALID_HANDLE;
 	
-	float time = GetConVarFloat(cvar_time);
+	float time = g_time;
 	
 	if(time > 0.0)
 		timers = CreateTimer(time, spawnkill);
@@ -64,13 +100,38 @@ public Changed(Handle:convar, const String:oldValue[], const String:newValue[])
 public OnMapStart()
 {
 	enable = true;
+	
+	new cts = 0;
+	new ts = 0;
+	
+	int ent = -1;
+	while ((ent = FindEntityByClassname(ent, "info_player_counterterrorist")) != -1) 
+	{
+		cts++;
+	}
+	
+	ent = -1;
+	while ((ent = FindEntityByClassname(ent, "info_player_terrorist")) != -1)
+	{
+		ts++;
+	}
+	
+	if (ts == 0 || cts == 0)course = true;
+	else course = false;
 }
 
 public Action:spawn(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	
-	if(!enable && IsPlayerAlive(client)) ForcePlayerSuicide(client);
+	if (!enable && IsPlayerAlive(client))CreateTimer(0.5, CheckPlayer, GetClientUserId(client)); 
+}
+
+public Action CheckPlayer(Handle timer, any userid)
+{
+	int client = GetClientOfUserId(userid);
+	
+	if (client != 0 && !enable && IsPlayerAlive(client)) ForcePlayerSuicide(client);
 }
 
 public Action:Event_Playerd2(Handle:event, const String:name[], bool:dontBroadcast)
@@ -84,6 +145,7 @@ public Action:Event_Playerd2(Handle:event, const String:name[], bool:dontBroadca
 
 public Action:Resp(Handle timer, int userid)
 {
+	if (g_course && !course)return;
 	int client = GetClientOfUserId(userid);
 	if(client == 0) return;
 	
@@ -107,6 +169,7 @@ public OnClientDisconnect(client)
 
 public Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
 {
+	if (g_course && !course)return;
 	enable = true;
 	
 	if(timers != INVALID_HANDLE) KillTimer(timers);
@@ -130,6 +193,7 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 	if (!enable)
 		return;
 		
+	if (g_course && !course)return;
 	decl String:weapon[32];
 	GetEventString(event, "weapon", weapon, sizeof(weapon));
 	
