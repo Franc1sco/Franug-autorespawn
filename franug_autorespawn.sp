@@ -21,7 +21,7 @@
 
 #pragma newdecls required
 
-#define DATA "1.6"
+#define DATA "1.6.1"
 
 #define RESPAWNT 0.5 // time for respawn
 
@@ -45,6 +45,8 @@ Handle timers, cvar_time, cvar_restart, cvar_course;
 
 float g_time;
 bool g_course;
+
+Handle g_timer[MAXPLAYERS + 1];
 
 public void OnPluginStart()
 {
@@ -143,16 +145,19 @@ public Action Event_spawn(Handle event, const char[] name, bool dontBroadcast)
 	
 	if (!enable && IsPlayerAlive(client))
 	{
-		CreateTimer(0.5, CheckPlayer, GetClientUserId(client)); 
+		if(g_timer[client] != INVALID_HANDLE) KillTimer(g_timer[client]);
+		g_timer[client] = INVALID_HANDLE;
+		
+		g_timer[client] = CreateTimer(0.5, CheckPlayer, client); 
 		ForcePlayerSuicide(client);
 	}
 }
 
-public Action CheckPlayer(Handle timer, any userid)
+public Action CheckPlayer(Handle timer, int client)
 {
-	int client = GetClientOfUserId(userid);
+	g_timer[client] = INVALID_HANDLE;
 	
-	if (client != 0 && !enable && IsPlayerAlive(client)) ForcePlayerSuicide(client);
+	if (!enable && IsPlayerAlive(client)) ForcePlayerSuicide(client);
 }
 
 public Action Event_Playerdeath(Handle event, const char[] name, bool dontBroadcast)
@@ -185,6 +190,9 @@ public Action OnJoinTeam(int client, const char[] command, int numArgs)
 
 public void OnClientDisconnect(int client)
 {
+	if(g_timer[client] != INVALID_HANDLE) KillTimer(g_timer[client]);
+	g_timer[client] = INVALID_HANDLE;
+		
 	g_fDeathTime[client] = 0.0;
 }
 
