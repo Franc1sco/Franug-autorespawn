@@ -141,7 +141,11 @@ public Action Event_spawn(Handle event, const char[] name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 	
-	if (!enable && IsPlayerAlive(client))CreateTimer(0.5, CheckPlayer, GetClientUserId(client)); 
+	if (!enable && IsPlayerAlive(client))
+	{
+		CreateTimer(0.5, CheckPlayer, GetClientUserId(client)); 
+		ForcePlayerSuicide(client);
+	}
 }
 
 public Action CheckPlayer(Handle timer, any userid)
