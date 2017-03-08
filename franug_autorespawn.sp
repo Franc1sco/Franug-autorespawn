@@ -19,13 +19,15 @@
 #include <sdktools>
 #include <cstrike>
 
-#define DATA "1.5"
+#pragma newdecls required
+
+#define DATA "1.6"
 
 #define RESPAWNT 0.5 // time for respawn
 
 bool course;
 
-public Plugin:myinfo = 
+public Plugin myinfo = 
 {
 	name = "SM Franug Auto Respawn",
 	author = "Franc1sco franug",
@@ -37,14 +39,14 @@ public Plugin:myinfo =
 
 bool enable = true;
 
-new Float:g_fDeathTime[MAXPLAYERS+1];
+float g_fDeathTime[MAXPLAYERS+1];
 
 Handle timers, cvar_time, cvar_restart, cvar_course;
 
 float g_time;
 bool g_course;
 
-public OnPluginStart()
+public void OnPluginStart()
 {
 	CreateConVar("sm_franugautorespawn_version", DATA, "", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
 	cvar_course = CreateConVar("sm_franugautorespawn_course", "1", "1 = Autodisable this plugin in course maps. 0 = no autodisable in course maps");
@@ -56,8 +58,8 @@ public OnPluginStart()
 	HookConVarChange(cvar_time, Changed_cvars);
 	HookConVarChange(cvar_course, Changed_cvars);
 	
-	HookEvent("player_death", Event_Playerd2);
-	HookEvent("player_spawn", spawn)
+	HookEvent("player_death", Event_Playerdeath);
+	HookEvent("player_spawn", Event_spawn)
 	
 	AddCommandListener(OnJoinTeam, "jointeam");
 	
@@ -78,10 +80,8 @@ public OnPluginStart()
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
 }
 
-public Changed_cvars(Handle:convar, const String:oldValue[], const String:newValue[])
+public void Changed_cvars(Handle convar, const char[] oldValue, const char[] newValue)
 {
-	
-	
 	if(convar == cvar_time)
 	{
 		enable = true;
@@ -101,7 +101,7 @@ public Changed_cvars(Handle:convar, const String:oldValue[], const String:newVal
 	}
 }
 
-public Changed(Handle:convar, const String:oldValue[], const String:newValue[])
+public void Changed(Handle convar, const char[] oldValue, const char[] newValue)
 {
 	enable = true;
 	
@@ -114,12 +114,12 @@ public Changed(Handle:convar, const String:oldValue[], const String:newValue[])
 		timers = CreateTimer(time, spawnkill);
 }
 
-public OnMapStart()
+public void OnMapStart()
 {
 	enable = true;
 	
-	new cts = 0;
-	new ts = 0;
+	int cts = 0;
+	int ts = 0;
 	
 	int ent = -1;
 	while ((ent = FindEntityByClassname(ent, "info_player_counterterrorist")) != -1) 
@@ -137,9 +137,9 @@ public OnMapStart()
 	else course = false;
 }
 
-public Action:spawn(Handle:event, const String:name[], bool:dontBroadcast)
+public Action Event_spawn(Handle event, const char[] name, bool dontBroadcast)
 {
-	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 	
 	if (!enable && IsPlayerAlive(client))CreateTimer(0.5, CheckPlayer, GetClientUserId(client)); 
 }
@@ -151,16 +151,16 @@ public Action CheckPlayer(Handle timer, any userid)
 	if (client != 0 && !enable && IsPlayerAlive(client)) ForcePlayerSuicide(client);
 }
 
-public Action:Event_Playerd2(Handle:event, const String:name[], bool:dontBroadcast)
+public Action Event_Playerdeath(Handle event, const char[] name, bool dontBroadcast)
 {
-	new client = GetClientOfUserId(GetEventInt(event, "userid"));
-	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
+	int client = GetClientOfUserId(GetEventInt(event, "userid"));
+	int attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
 	if(IsValidClient(attacker) && attacker != client) return;
 	
-	if(enable) CreateTimer(RESPAWNT, Resp, GetClientUserId(client));
+	if(enable) CreateTimer(RESPAWNT, Respawn, GetClientUserId(client));
 }
 
-public Action:Resp(Handle timer, int userid)
+public Action Respawn(Handle timer, int userid)
 {
 	if (g_course && !course)return;
 	int client = GetClientOfUserId(userid);
@@ -169,22 +169,22 @@ public Action:Resp(Handle timer, int userid)
 	if(IsClientInGame(client) && !IsPlayerAlive(client) && GetClientTeam(client) > 1 && enable) CS_RespawnPlayer(client)
 }
 
-public Action:OnJoinTeam(client, const String:command[], numArgs)
+public Action OnJoinTeam(int client, const char[] command, int numArgs)
 {
 	if (!IsClientInGame(client) || numArgs < 1) return Plugin_Continue;
 
 	if(!IsPlayerAlive(client))
-		if(enable) CreateTimer(RESPAWNT, Resp, client);
+		if(enable) CreateTimer(RESPAWNT, Respawn, GetClientUserId(client));
 
 	return Plugin_Continue;
 }
 
-public OnClientDisconnect(client)
+public void OnClientDisconnect(int client)
 {
 	g_fDeathTime[client] = 0.0;
 }
 
-public Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
+public Action Event_RoundStart(Handle event, const char[] name, bool dontBroadcast)
 {
 	if (g_course && !course)return;
 	enable = true;
@@ -205,21 +205,21 @@ public Action spawnkill(Handle timer)
 	timers = INVALID_HANDLE;
 }
 
-public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
+public Action Event_PlayerDeath(Handle event, const char[] name, bool dontBroadcast)
 {
 	if (!enable)
 		return;
 		
 	if (g_course && !course)return;
-	decl String:weapon[32];
+	char weapon[32];
 	GetEventString(event, "weapon", weapon, sizeof(weapon));
 	
-	new victim = GetClientOfUserId(GetEventInt(event, "userid"));
-	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
+	int victim = GetClientOfUserId(GetEventInt(event, "userid"));
+	int attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
 	
 	if (victim && !attacker && StrEqual(weapon, "trigger_hurt"))
 	{
-		new Float:fGameTime = GetGameTime();
+		float fGameTime = GetGameTime();
 		
 		if (fGameTime - g_fDeathTime[victim] - RESPAWNT < 2.0)
 		{
@@ -231,7 +231,7 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 	}
 }
 
-public IsValidClient( client ) 
+public bool IsValidClient( int client ) 
 { 
     if ( !( 1 <= client <= MaxClients ) || !IsClientInGame(client) ) 
         return false; 
