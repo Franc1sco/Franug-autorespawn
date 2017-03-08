@@ -21,9 +21,7 @@
 
 #pragma newdecls required
 
-#define DATA "1.6.1"
-
-#define RESPAWNT 0.5 // time for respawn
+#define DATA "1.7"
 
 bool course;
 
@@ -41,10 +39,10 @@ bool enable = true;
 
 float g_fDeathTime[MAXPLAYERS+1];
 
-Handle timers, cvar_time, cvar_restart, cvar_course;
+Handle timers, cvar_time, cvar_restart, cvar_course, cvar_respawn, cvar_spawnkill;
 
-float g_time;
-bool g_course;
+float g_time, g_respawn;
+bool g_course, g_spawnkill;
 
 Handle g_timer[MAXPLAYERS + 1];
 
@@ -54,11 +52,18 @@ public void OnPluginStart()
 	cvar_course = CreateConVar("sm_franugautorespawn_course", "1", "1 = Autodisable this plugin in course maps. 0 = no autodisable in course maps");
 	cvar_time = CreateConVar("sm_franugautorespawn_time", "30.0", "Time after round start for enable the spawnkiller. 0.0 = disabled.");
 	
+	cvar_respawn = CreateConVar("sm_franugautorespawn_respawn", "0.5", "Time after death for respawn");
+	cvar_spawnkill = CreateConVar("sm_franugautorespawn_spawnkilldetection", "1", " Enable spawnkill-detection? 0 = Disable");
+	
 	g_course = GetConVarBool(cvar_course);
 	g_time = GetConVarFloat(cvar_time);
+	g_respawn = GetConVarFloat(cvar_respawn);
+	g_spawnkill = GetConVarBool(cvar_spawnkill);
 	
 	HookConVarChange(cvar_time, Changed_cvars);
 	HookConVarChange(cvar_course, Changed_cvars);
+	HookConVarChange(cvar_respawn, Changed_cvars);
+	HookConVarChange(cvar_spawnkill, Changed_cvars);
 	
 	HookEvent("player_death", Event_Playerdeath);
 	HookEvent("player_spawn", Event_spawn)
@@ -100,6 +105,14 @@ public void Changed_cvars(Handle convar, const char[] oldValue, const char[] new
 	else if(convar == cvar_course)
 	{
 		g_course = GetConVarBool(cvar_course);
+	}
+	else if(convar == cvar_respawn)
+	{
+		g_respawn = GetConVarFloat(cvar_respawn);
+	}
+	else if(convar == cvar_spawnkill)
+	{
+		g_spawnkill = GetConVarBool(cvar_spawnkill);
 	}
 }
 
@@ -166,7 +179,7 @@ public Action Event_Playerdeath(Handle event, const char[] name, bool dontBroadc
 	int attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
 	if(IsValidClient(attacker) && attacker != client) return;
 	
-	if(enable) CreateTimer(RESPAWNT, Respawn, GetClientUserId(client));
+	if(enable) CreateTimer(g_respawn, Respawn, GetClientUserId(client));
 }
 
 public Action Respawn(Handle timer, int userid)
@@ -183,7 +196,7 @@ public Action OnJoinTeam(int client, const char[] command, int numArgs)
 	if (!IsClientInGame(client) || numArgs < 1) return Plugin_Continue;
 
 	if(!IsPlayerAlive(client))
-		if(enable) CreateTimer(RESPAWNT, Respawn, GetClientUserId(client));
+		if(enable) CreateTimer(g_respawn, Respawn, GetClientUserId(client));
 
 	return Plugin_Continue;
 }
@@ -219,6 +232,8 @@ public Action spawnkill(Handle timer)
 
 public Action Event_PlayerDeath(Handle event, const char[] name, bool dontBroadcast)
 {
+	if (!g_spawnkill)return;
+	
 	if (!enable)
 		return;
 		
@@ -233,7 +248,7 @@ public Action Event_PlayerDeath(Handle event, const char[] name, bool dontBroadc
 	{
 		float fGameTime = GetGameTime();
 		
-		if (fGameTime - g_fDeathTime[victim] - RESPAWNT < 2.0)
+		if (fGameTime - g_fDeathTime[victim] - g_respawn < 2.0)
 		{
 			PrintToChatAll(" \x04Repeat killer detected. Disabling autorespawn for this round.");
 			enable = false;
