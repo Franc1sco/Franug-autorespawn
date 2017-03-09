@@ -21,7 +21,7 @@
 
 #pragma newdecls required
 
-#define DATA "1.7"
+#define DATA "1.7.1"
 
 bool course;
 
@@ -66,7 +66,8 @@ public void OnPluginStart()
 	HookConVarChange(cvar_spawnkill, Changed_cvars);
 	
 	HookEvent("player_death", Event_Playerdeath);
-	HookEvent("player_spawn", Event_spawn)
+	HookEvent("player_spawn", Event_spawn);
+	HookEvent("player_team", Event_Team, EventHookMode_Pre);
 	
 	AddCommandListener(OnJoinTeam, "jointeam");
 	
@@ -166,11 +167,31 @@ public Action Event_spawn(Handle event, const char[] name, bool dontBroadcast)
 	}
 }
 
+public Action Event_Team(Handle event, const char[] name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(GetEventInt(event, "userid"));
+	if(g_timer[client] != INVALID_HANDLE) return Plugin_Handled;
+	
+	return Plugin_Continue;
+}
+
 public Action CheckPlayer(Handle timer, int client)
 {
-	g_timer[client] = INVALID_HANDLE;
 	
-	if (!enable && IsPlayerAlive(client)) ForcePlayerSuicide(client);
+	if (!enable)
+	{	
+		if(IsPlayerAlive(client)) ForcePlayerSuicide(client);
+		
+		// continue player alive
+		if(IsPlayerAlive(client))
+		{
+			int team = GetClientTeam(client);
+			
+			ChangeClientTeam(client, 1);
+			ChangeClientTeam(client, team);
+		}
+	}
+	g_timer[client] = INVALID_HANDLE;
 }
 
 public Action Event_Playerdeath(Handle event, const char[] name, bool dontBroadcast)
@@ -211,6 +232,12 @@ public void OnClientDisconnect(int client)
 
 public Action Event_RoundStart(Handle event, const char[] name, bool dontBroadcast)
 {
+	for(int i = 1; i <= MaxClients; i++)
+		if(IsClientInGame(i))
+		{
+			OnClientDisconnect(i);
+		}
+		
 	if (g_course && !course)return;
 	enable = true;
 	
