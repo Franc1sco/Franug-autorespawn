@@ -1,6 +1,6 @@
 /*  Franug Auto Respawn
  *
- *  Copyright (C) 2017 Francisco 'Franc1sco' García
+ *  Copyright (C) 2017-2019 Francisco 'Franc1sco' García
  * 
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -21,7 +21,7 @@
 
 #pragma newdecls required
 
-#define DATA "1.7.1"
+#define DATA "1.8"
 
 bool course;
 
@@ -39,27 +39,32 @@ bool enable = true;
 
 float g_fDeathTime[MAXPLAYERS+1];
 
-Handle timers, cvar_time, cvar_restart, cvar_course, cvar_respawn, cvar_spawnkill;
+Handle timers, cvar_enable, cvar_time, cvar_restart, cvar_course, cvar_respawn, cvar_spawnkill;
 
 float g_time, g_respawn;
-bool g_course, g_spawnkill;
+bool g_enable, g_course, g_spawnkill;
 
 Handle g_timer[MAXPLAYERS + 1];
 
 public void OnPluginStart()
 {
-	CreateConVar("sm_franugautorespawn_version", DATA, "", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
+	CreateConVar("sm_franugautorespawn_version", DATA, "", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
+	
+	cvar_enable = CreateConVar("sm_franugautorespawn_enable", "1", "Enable/disable plugin");
+	
 	cvar_course = CreateConVar("sm_franugautorespawn_course", "1", "1 = Autodisable this plugin in course maps. 0 = no autodisable in course maps");
 	cvar_time = CreateConVar("sm_franugautorespawn_time", "30.0", "Time after round start for enable the spawnkiller. 0.0 = disabled.");
 	
 	cvar_respawn = CreateConVar("sm_franugautorespawn_respawn", "0.5", "Time after death for respawn");
 	cvar_spawnkill = CreateConVar("sm_franugautorespawn_spawnkilldetection", "1", " Enable spawnkill-detection? 0 = Disable");
 	
+	g_enable = GetConVarBool(cvar_enable);
 	g_course = GetConVarBool(cvar_course);
 	g_time = GetConVarFloat(cvar_time);
 	g_respawn = GetConVarFloat(cvar_respawn);
 	g_spawnkill = GetConVarBool(cvar_spawnkill);
 	
+	HookConVarChange(cvar_enable, Changed_cvars);
 	HookConVarChange(cvar_time, Changed_cvars);
 	HookConVarChange(cvar_course, Changed_cvars);
 	HookConVarChange(cvar_respawn, Changed_cvars);
@@ -67,7 +72,6 @@ public void OnPluginStart()
 	
 	HookEvent("player_death", Event_Playerdeath);
 	HookEvent("player_spawn", Event_spawn);
-	HookEvent("player_team", Event_Team, EventHookMode_Pre);
 	
 	AddCommandListener(OnJoinTeam, "jointeam");
 	
@@ -90,7 +94,11 @@ public void OnPluginStart()
 
 public void Changed_cvars(Handle convar, const char[] oldValue, const char[] newValue)
 {
-	if(convar == cvar_time)
+	if(convar == cvar_enable)
+	{
+		g_enable = GetConVarBool(cvar_enable);
+	}
+	else if(convar == cvar_time)
 	{
 		enable = true;
 		if(timers != INVALID_HANDLE) KillTimer(timers);
@@ -157,7 +165,7 @@ public Action Event_spawn(Handle event, const char[] name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 	
-	if (!enable && IsPlayerAlive(client))
+	if (g_enable && !enable && IsPlayerAlive(client))
 	{
 		if(g_timer[client] != INVALID_HANDLE) KillTimer(g_timer[client]);
 		g_timer[client] = INVALID_HANDLE;
@@ -165,14 +173,6 @@ public Action Event_spawn(Handle event, const char[] name, bool dontBroadcast)
 		g_timer[client] = CreateTimer(0.5, CheckPlayer, client); 
 		ForcePlayerSuicide(client);
 	}
-}
-
-public Action Event_Team(Handle event, const char[] name, bool dontBroadcast)
-{
-	int client = GetClientOfUserId(GetEventInt(event, "userid"));
-	if(g_timer[client] != INVALID_HANDLE) return Plugin_Handled;
-	
-	return Plugin_Continue;
 }
 
 public Action CheckPlayer(Handle timer, int client)
@@ -196,6 +196,9 @@ public Action CheckPlayer(Handle timer, int client)
 
 public Action Event_Playerdeath(Handle event, const char[] name, bool dontBroadcast)
 {
+	if (!g_enable)
+		return;
+		
 	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 	int attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
 	if(IsValidClient(attacker) && attacker != client) return;
@@ -205,6 +208,9 @@ public Action Event_Playerdeath(Handle event, const char[] name, bool dontBroadc
 
 public Action Respawn(Handle timer, int userid)
 {
+	if (!g_enable)
+		return;
+		
 	if (g_course && !course)return;
 	int client = GetClientOfUserId(userid);
 	if(client == 0) return;
@@ -214,12 +220,13 @@ public Action Respawn(Handle timer, int userid)
 
 public Action OnJoinTeam(int client, const char[] command, int numArgs)
 {
-	if (!IsClientInGame(client) || numArgs < 1) return Plugin_Continue;
+	if (!g_enable)
+		return;
+		
+	if (!IsClientInGame(client) || numArgs < 1) return;
 
 	if(!IsPlayerAlive(client))
 		if(enable) CreateTimer(g_respawn, Respawn, GetClientUserId(client));
-
-	return Plugin_Continue;
 }
 
 public void OnClientDisconnect(int client)
@@ -259,6 +266,9 @@ public Action spawnkill(Handle timer)
 
 public Action Event_PlayerDeath(Handle event, const char[] name, bool dontBroadcast)
 {
+	if (!g_enable)
+		return;
+		
 	if (!g_spawnkill)return;
 	
 	if (!enable)
