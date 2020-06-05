@@ -21,7 +21,7 @@
 
 #pragma newdecls required
 
-#define DATA "1.8"
+#define DATA "1.9"
 
 bool course;
 
@@ -245,11 +245,11 @@ public Action Event_RoundStart(Handle event, const char[] name, bool dontBroadca
 			OnClientDisconnect(i);
 		}
 		
-	if (g_course && !course)return;
 	enable = true;
 	
 	if(timers != INVALID_HANDLE) KillTimer(timers);
 	timers = INVALID_HANDLE;
+	if (g_course && !course)return;
 	
 	float time = GetConVarFloat(cvar_time);
 	
