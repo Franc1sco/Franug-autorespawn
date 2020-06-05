@@ -170,29 +170,10 @@ public Action Event_spawn(Handle event, const char[] name, bool dontBroadcast)
 		if(g_timer[client] != INVALID_HANDLE) KillTimer(g_timer[client]);
 		g_timer[client] = INVALID_HANDLE;
 		
-		g_timer[client] = CreateTimer(0.5, CheckPlayer, client); 
-		ForcePlayerSuicide(client);
+		//ForcePlayerSuicide(client);
 	}
 }
 
-public Action CheckPlayer(Handle timer, int client)
-{
-	
-	if (!enable)
-	{	
-		if(IsPlayerAlive(client)) ForcePlayerSuicide(client);
-		
-		// continue player alive
-		if(IsPlayerAlive(client))
-		{
-			int team = GetClientTeam(client);
-			
-			ChangeClientTeam(client, 1);
-			ChangeClientTeam(client, team);
-		}
-	}
-	g_timer[client] = INVALID_HANDLE;
-}
 
 public Action Event_Playerdeath(Handle event, const char[] name, bool dontBroadcast)
 {
