@@ -1,6 +1,6 @@
 /*  Franug Auto Respawn
  *
- *  Copyright (C) 2017-2019 Francisco 'Franc1sco' García
+ *  Copyright (C) 2017-2021 Francisco 'Franc1sco' García
  * 
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -21,7 +21,7 @@
 
 #pragma newdecls required
 
-#define DATA "1.8"
+#define DATA "1.9"
 
 bool course;
 
@@ -52,7 +52,7 @@ public void OnPluginStart()
 	
 	cvar_enable = CreateConVar("sm_franugautorespawn_enable", "1", "Enable/disable plugin");
 	
-	cvar_course = CreateConVar("sm_franugautorespawn_course", "1", "1 = Autodisable this plugin in course maps. 0 = no autodisable in course maps");
+	cvar_course = CreateConVar("sm_franugautorespawn_course", "0", "1 = Autodisable this plugin in NO course maps. 0 = no autodisable in NO course maps");
 	cvar_time = CreateConVar("sm_franugautorespawn_time", "30.0", "Time after round start for enable the spawnkiller. 0.0 = disabled.");
 	
 	cvar_respawn = CreateConVar("sm_franugautorespawn_respawn", "0.5", "Time after death for respawn");
@@ -200,8 +200,11 @@ public Action Event_Playerdeath(Handle event, const char[] name, bool dontBroadc
 		return;
 		
 	int client = GetClientOfUserId(GetEventInt(event, "userid"));
+	
+	/* this produces to respawn only on suicide or world deaths
 	int attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
 	if(IsValidClient(attacker) && attacker != client) return;
+	*/
 	
 	if(enable) CreateTimer(g_respawn, Respawn, GetClientUserId(client));
 }
